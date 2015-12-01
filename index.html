@@ -26,7 +26,11 @@
                                         <option value="5">5</option>
                                         <option value="10">10</option>
                                         <option value="20">20</option>
-                                </select> 
+                                </select>
+                                
+                                
+								<button id="saveForm">save</button>
+							    
                         </div> 
                         <hr />
                         <div id="member_msg"></div>
@@ -51,11 +55,12 @@
     <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
     <script>
       var socket = io();
-      $('form').submit(function(){
-        socket.emit('chat message', $('#m').val());
-        $('#m').val('');
+      $('#saveForm').click(function(){
+        socket.emit('saveImg', $("#whiteboard")[0].toDataURL());
+        //console.log($("#whiteboard")[0].toDataURL());
         return false;
       });
+      
       socket.on('chat message', function(msg){
         $('#messages').append($('<li>').text(msg));
       });
