@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; background-color: yellow;}
+      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #eee; }
+      #whiteboard {background-color: white;}
+    </style>
+  </head>
+  <body>
+  	<div id="wrapper">
+                <div id="menu">
+                        <div> 
+                                <select id="size">
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="10">10</option>
+                                        <option value="20">20</option>
+                                </select> 
+                        </div> 
+                        <hr />
+                        <div id="member_msg"></div>
+                </div> 
+                <div id="content">
+                        <canvas id="whiteboard"></canvas>
+                </div> 
+                <div class="clear"></div>
+        </div> 
+  
+  
+	<!--
+<div>
+		<ul id="messages"></ul>
+	</div>
+    
+    <form action="">
+      <input id="m" autocomplete="off" /><button>Send</button>
+    </form>
+-->
+    <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <script>
+      var socket = io();
+      $('form').submit(function(){
+        socket.emit('chat message', $('#m').val());
+        $('#m').val('');
+        return false;
+      });
+      socket.on('chat message', function(msg){
+        $('#messages').append($('<li>').text(msg));
+      });
+      
+      
+      //別人畫布上的動作，呈現在我們自己的頁面上 
+        socket.on('show', function(data){ 
+                //設定筆尖大小 
+                //$('#size').val( data.size ); 
+                ctx.lineWidth = data.size; 
+                
+                //繪圖 
+                ctx.beginPath();  
+        ctx.moveTo(data.x, data.y);  
+        ctx.lineTo(data.new_x, data.new_y);  
+        ctx.closePath();  
+        ctx.stroke(); 
+        });
+        
+        /* 繪圖相關設定 */ 
+        //宣告 canvas 元素 
+        var c = document.getElementsByTagName('canvas')[0]; 
+        
+        //設定 canvas 寬與高 
+        c.width  = 648; 
+        c.height = 770; 
+    
+        //判斷畫布是否有動作的布林變數 
+        var drawing = false; 
+        
+        //canvas 元素本身沒有畫作能力，僅為圖形容器，需要使用 javascript 來操作畫布 
+        //我們須要透過 getContext() 來取得一個提供在 canvas 上畫圖的方法與屬性之「物件」 
+	    var ctx = c.getContext('2d'); 
+	        
+	        //繪圖物件初始設定 
+	    ctx.lineCap = 'round'; 
+	    ctx.lineJoin = 'round'; 
+	    ctx.strokeStyle = '#000000'; 
+	    ctx.lineWidth = 1; 
+	    
+	    //座標相關變數 
+	    var offset, x, y, new_x, new_y;
+	    
+	    //滑鼠在畫布按下時的事件處理 
+	    $(document).on('mousedown', '#whiteboard', function(e){ 
+	            e.preventDefault(); 
+	            
+	            //打開可供畫圖的機制 
+	        drawing = true; 
+	        ctx.lineWidth = $('#size').val();
+	            //計算相對的畫布範圍（這很重要） 
+	            offset = $(e.currentTarget).offset(); 
+	        x = e.pageX - offset.left;  
+	        y = e.pageY - offset.top; 
+	        drawLine(x, y, x+1, y+1); 
+	    });
+	    
+	    //滑鼠在畫布上按下左右時，移動的情況 
+	    $(document).on('mousemove', '#whiteboard', function(e){ 
+	            e.preventDefault(); 
+	            
+	            //是否開啟畫圖機制 
+	            if( drawing ) 
+	            { 
+	                    //計算移動後的新座標，再進行畫圖作業 
+	                new_x = e.pageX - offset.left; 
+	                new_y = e.pageY - offset.top; 
+	                drawLine(x, y, new_x, new_y); 
+	                x = new_x; 
+	                y = new_y; 
+	            } 
+	    });
+	    
+	    //放開滑鼠鍵 
+	    $(document).on('mouseup', '#whiteboard', function(e){ 
+	            e.preventDefault(); 
+	            
+	            //關閉繪圖機制 
+	            drawing = false; 
+	    });
+	    
+	    //選擇筆尖大小 
+        $(document).on('change', '#size', function(e){ 
+                ctx.lineWidth = $(this).val(); 
+        }); 
+        
+        //畫圖，並將繪畫座標傳給網頁上的其他使用者 
+	    function drawLine(x, y, new_x, new_y) 
+	    {  
+	                //繪圖 
+	        ctx.beginPath();  
+	        ctx.moveTo(x, y);  
+	        ctx.lineTo(new_x, new_y);  
+	        ctx.closePath();  
+	        ctx.stroke(); 
+	        
+	        //將繪畫座標透過 node.js 傳給使用者 
+	        var obj = new Object; 
+	        obj.x = x; 
+	        obj.y = y; 
+	        obj.new_x = new_x; 
+	        obj.new_y = new_y; 
+	        obj.size = $('#size').val(); 
+	        socket.emit('draw', obj); 
+	    }    
+    </script>
+  </body>
+</html>
